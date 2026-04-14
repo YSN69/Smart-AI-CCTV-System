@@ -1,4 +1,4 @@
-# 🛡️ Smart AI CCTV System (SaaS Ready)
+# 🛡️ Smart AI CCTV System
 
 **Enterprise-Grade Video Surveillance & Analytics Engine**
 

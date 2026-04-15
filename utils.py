@@ -46,37 +46,54 @@ def get_colour_for_class(class_name: str, class_id: int = 0) -> tuple[int, int, 
     return _FALLBACK_COLOURS[class_id % len(_FALLBACK_COLOURS)]
 
 
+def _draw_translucent_rect(
+    frame: np.ndarray,
+    x1: int, y1: int, x2: int, y2: int,
+    colour: tuple[int, int, int],
+    alpha: float
+) -> None:
+    """Draw a translucent filled rectangle safely and efficiently using ROIs."""
+    h, w = frame.shape[:2]
+    x1, y1 = max(0, x1), max(0, y1)
+    x2, y2 = min(w, x2), min(h, y2)
+    
+    if x1 >= x2 or y1 >= y2:
+        return
+        
+    roi = frame[y1:y2, x1:x2]
+    rect_overlay = np.empty_like(roi)
+    rect_overlay[:] = colour
+    cv2.addWeighted(rect_overlay, alpha, roi, 1 - alpha, 0, roi)
+
+
 # ──────────────────────────────────────────────
-# Modern rounded bounding box with transparent fill
+# Modern corner bounding box with transparent fill
 # ──────────────────────────────────────────────
-def draw_rounded_box(
+def draw_corner_box(
     frame: np.ndarray,
     x1: int, y1: int, x2: int, y2: int,
     colour: tuple[int, int, int],
     thickness: int = 2,
-    radius: int = 15,
+    length: int = 20,
 ) -> None:
-    """Draw a modern rounded bounding box (border only)."""
-
-    # ── Rounded border ──
-    # Ensure radius isn't larger than box dimensions
-    r = min(radius, (x2 - x1) // 2, (y2 - y1) // 2)
+    """Draw a modern corner-bracket bounding box with a subtle fill."""
+    l = min(length, (x2 - x1) // 3, (y2 - y1) // 3)
     
-    if r <= 0:
-        cv2.rectangle(frame, (x1, y1), (x2, y2), colour, thickness, cv2.LINE_AA)
-        return
+    # Subtle interior fill
+    _draw_translucent_rect(frame, x1, y1, x2, y2, colour, 0.15)
 
-    # Straight line segments
-    cv2.line(frame, (x1 + r, y1), (x2 - r, y1), colour, thickness, cv2.LINE_AA) # Top
-    cv2.line(frame, (x1 + r, y2), (x2 - r, y2), colour, thickness, cv2.LINE_AA) # Bottom
-    cv2.line(frame, (x1, y1 + r), (x1, y2 - r), colour, thickness, cv2.LINE_AA) # Left
-    cv2.line(frame, (x2, y1 + r), (x2, y2 - r), colour, thickness, cv2.LINE_AA) # Right
-
-    # Corner arcs
-    cv2.ellipse(frame, (x1 + r, y1 + r), (r, r), 180, 0, 90, colour, thickness, cv2.LINE_AA)
-    cv2.ellipse(frame, (x2 - r, y1 + r), (r, r), 270, 0, 90, colour, thickness, cv2.LINE_AA)
-    cv2.ellipse(frame, (x1 + r, y2 - r), (r, r),  90, 0, 90, colour, thickness, cv2.LINE_AA)
-    cv2.ellipse(frame, (x2 - r, y2 - r), (r, r),   0, 0, 90, colour, thickness, cv2.LINE_AA)
+    # Top-Left
+    cv2.line(frame, (x1, y1), (x1 + l, y1), colour, thickness, cv2.LINE_AA)
+    cv2.line(frame, (x1, y1), (x1, y1 + l), colour, thickness, cv2.LINE_AA)
+    # Top-Right
+    cv2.line(frame, (x2, y1), (x2 - l, y1), colour, thickness, cv2.LINE_AA)
+    cv2.line(frame, (x2, y1), (x2, y1 + l), colour, thickness, cv2.LINE_AA)
+    # Bottom-Left
+    cv2.line(frame, (x1, y2), (x1 + l, y2), colour, thickness, cv2.LINE_AA)
+    cv2.line(frame, (x1, y2), (x1, y2 - l), colour, thickness, cv2.LINE_AA)
+    # Bottom-Right
+    cv2.line(frame, (x2, y2), (x2 - l, y2), colour, thickness, cv2.LINE_AA)
+    cv2.line(frame, (x2, y2), (x2, y2 - l), colour, thickness, cv2.LINE_AA)
 
 
 def draw_label(
@@ -86,31 +103,27 @@ def draw_label(
     colour: tuple[int, int, int],
     font_scale: float = 0.50,
 ) -> None:
-    """Draw a pill-shaped label with semi-transparent background."""
+    """Draw an optimized, modern label with semi-transparent background."""
     font = cv2.FONT_HERSHEY_SIMPLEX
     (tw, th), baseline = cv2.getTextSize(text, font, font_scale, 1)
 
-    # Pill background
-    pad_x, pad_y = 8, 5
+    # Label background
+    pad_x, pad_y = 6, 4
     lx1 = x
     ly1 = y - th - 2 * pad_y
     lx2 = x + tw + 2 * pad_x
     ly2 = y
 
-    # Semi-transparent rounded rectangle
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (lx1, ly1), (lx2, ly2), colour, -1)
-    cv2.addWeighted(overlay, 0.70, frame, 0.30, 0, frame)
+    # Efficient translucent background
+    _draw_translucent_rect(frame, lx1, ly1, lx2, ly2, colour, 0.6)
 
-    # Accent line on top
-    cv2.line(frame, (lx1, ly1), (lx2, ly1), colour, 2, cv2.LINE_AA)
+    # Bold accent line on the left side and top
+    cv2.line(frame, (lx1, ly1), (lx1, ly2), colour, 3, cv2.LINE_AA)
+    cv2.line(frame, (lx1, ly1), (lx2, ly1), colour, 1, cv2.LINE_AA)
 
-    # Text
-    cv2.putText(
-        frame, text,
-        (x + pad_x, y - pad_y),
-        font, font_scale, (255, 255, 255), 1, cv2.LINE_AA,
-    )
+    # Clean Drop Shadow Text
+    cv2.putText(frame, text, (x + pad_x + 1, y - pad_y + 1), font, font_scale, (0, 0, 0), 1, cv2.LINE_AA)
+    cv2.putText(frame, text, (x + pad_x, y - pad_y), font, font_scale, (255, 255, 255), 1, cv2.LINE_AA)
 
 
 # ──────────────────────────────────────────────
@@ -125,8 +138,8 @@ def draw_detection(
     """Draw a complete detection: corner box + label + optional track info."""
     colour = get_colour_for_class(det.class_name, det.class_id)
 
-    # Draw rounded transparent box
-    draw_rounded_box(
+    # Draw corner bracket transparent box
+    draw_corner_box(
         frame, det.x1, det.y1, det.x2, det.y2,
         colour, config.BOX_THICKNESS,
     )
@@ -155,7 +168,7 @@ def draw_tracked_person(frame: np.ndarray, tp: TrackedPerson) -> None:
     """Draw a tracked person with their tracking info and dwell-time progress bar."""
     colour = get_colour_for_class(tp.class_name, 0)
 
-    draw_rounded_box(
+    draw_corner_box(
         frame, tp.x1, tp.y1, tp.x2, tp.y2,
         colour, config.BOX_THICKNESS,
     )
@@ -327,12 +340,13 @@ def _draw_frosted_bar(
     if roi.size == 0:
         return
 
-    # Blur the region for frosted glass effect
-    blurred = cv2.GaussianBlur(roi, (15, 15), 10)
+    # Blur the region for frosted glass effect (optimized)
+    blurred = cv2.GaussianBlur(roi, (9, 9), 5)
 
     # Dark tint
-    tint = np.full_like(blurred, (25, 25, 30), dtype=np.uint8)
-    frosted = cv2.addWeighted(blurred, 0.3, tint, 0.7, 0)
+    tint = np.empty_like(blurred)
+    tint[:] = (20, 20, 25)
+    frosted = cv2.addWeighted(blurred, 0.4, tint, 0.6, 0)
 
     frame[y:y_end, x:x + w] = frosted
 
@@ -380,10 +394,8 @@ def _draw_alerts(frame: np.ndarray, alerts: list) -> None:
             border_thickness = 1
             icon = "[!] WARNING"
 
-        # Draw alert bar
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (10, y_top), (w - 10, y_bottom), bar_colour, -1)
-        cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+        # Draw alert bar efficiently
+        _draw_translucent_rect(frame, 10, y_top, w - 10, y_bottom, bar_colour, alpha)
 
         # Border
         cv2.rectangle(frame, (10, y_top), (w - 10, y_bottom),
@@ -427,12 +439,10 @@ def _draw_threat_level(frame: np.ndarray, alerts: list) -> None:
     x = w - tw - 20
     y = 65
 
-    # Pulsing background pill
+    # Pulsing background pill efficiently
     pulse = abs(time.time() % 0.8 - 0.4) * 2.5
     alpha = 0.5 + pulse * 0.3
     pad = 6
-    overlay = frame.copy()
-    cv2.rectangle(overlay, (x - pad, y - th - pad), (x + tw + pad, y + pad), colour, -1)
-    cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+    _draw_translucent_rect(frame, x - pad, y - th - pad, x + tw + pad, y + pad, colour, alpha)
 
     cv2.putText(frame, label, (x, y), font, 0.50, (255, 255, 255), 2, cv2.LINE_AA)

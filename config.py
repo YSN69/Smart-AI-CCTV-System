@@ -16,7 +16,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Examples:
 #   CAMERA_SOURCE = 0                       # webcam
 #   CAMERA_SOURCE = "sample_videos/demo.mp4" # local video file
-CAMERA_SOURCE = 0
+CAMERA_SOURCE = "test.mp4"
 
 # Desired capture resolution (width, height). Set to None for camera default.
 # Lower = faster. 640×480 is ideal for CPU-only; use 1280×720 if you have a GPU.
@@ -32,7 +32,7 @@ FPS_CAP = 30
 # Ultralytics YOLOv8 model name or path to a custom .pt file.
 # Standard models: "yolov8n.pt" (fastest) or "yolov8s.pt" (more accurate)
 # Detects 80 COCO classes (person, car, laptop, cell phone, etc.)
-YOLO_MODEL = "yolov8n.pt"
+YOLO_MODEL = "yolov8m.pt"
 
 # Minimum confidence threshold for a detection to be drawn / logged.
 CONFIDENCE_THRESHOLD = 0.40

@@ -16,7 +16,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 # Examples:
 #   CAMERA_SOURCE = 0                       # webcam
 #   CAMERA_SOURCE = "sample_videos/demo.mp4" # local video file
-CAMERA_SOURCE = "test.mp4"
+CAMERA_SOURCE = 0
 
 # Desired capture resolution (width, height). Set to None for camera default.
 # Lower = faster. 640×480 is ideal for CPU-only; use 1280×720 if you have a GPU.
